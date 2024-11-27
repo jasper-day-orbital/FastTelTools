@@ -53,5 +53,5 @@ t1 = time.perf_counter()
 
 print(f"Found values in {(t1 - t0) * 1000} ms")
 
-# plt.imshow(np.array(results).reshape([200, 200]).T, extent=bounds)
-# plt.show()
+plt.imshow(np.array(results).reshape([200, 200]).T, extent=bounds)
+plt.show()
