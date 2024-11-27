@@ -1,0 +1,4 @@
+Created mesh interpolator in 322.37160000022413 ms
+Interpolated points in 7403.840799999671 ms
+32686 / 40000 points inside mesh
+Found values in 150.1598999993803 ms
