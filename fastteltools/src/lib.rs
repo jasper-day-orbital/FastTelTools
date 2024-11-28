@@ -7,6 +7,7 @@ use rstar::{PointDistance, RTree, RTreeObject, AABB};
 struct Triangle {
     coords: Array2<f64>,
     indices: [usize; 3],
+    corners: [[f64; 2]; 2],
 }
 
 fn barycentric_coordinates(t: &Array2<f64>, x: f64, y: f64) -> Array1<f64> {
@@ -28,23 +29,35 @@ fn is_inside(coords: &Array1<f64>) -> bool {
     coords.iter().all(|&x| x >= 0.) && coords.iter().all(|&x| x <= 1.)
 }
 
-impl Triangle {
-    fn get_corners(&self) -> [[f64; 2]; 2] {
-        let mut c1 = [0.; 2];
-        let mut c2 = [0.; 2];
+fn get_corners(coords: &Array2<f64>) -> [[f64; 2]; 2] {
+    let mut c1 = [0.; 2];
+    let mut c2 = [0.; 2];
 
-        for (i, col) in self.coords.axis_iter(Axis(1)).enumerate() {
-            let (min, max) = col
-                .iter()
-                .fold((f64::INFINITY, f64::NEG_INFINITY), |(min, max), v| {
-                    (min.min(*v), max.max(*v))
-                });
-            // let min = *col.iter().min_by(|a, b| a.total_cmp(b)).unwrap();
-            // let max = *col.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
-            c1[i] = min;
-            c2[i] = max;
+    for (i, col) in coords.axis_iter(Axis(1)).enumerate() {
+        let (min, max) = col
+            .iter()
+            .fold((f64::INFINITY, f64::NEG_INFINITY), |(min, max), v| {
+                (min.min(*v), max.max(*v))
+            });
+        // let min = *col.iter().min_by(|a, b| a.total_cmp(b)).unwrap();
+        // let max = *col.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
+        c1[i] = min;
+        c2[i] = max;
+    }
+    [c1, c2]
+}
+
+impl Triangle {
+    fn new(coords: Array2<f64>, indices: [usize; 3]) -> Triangle {
+        Triangle {
+            corners: get_corners(&coords),
+            coords: coords,
+            indices: indices,
         }
-        [c1, c2]
+    }
+
+    fn get_corners(&self) -> [[f64; 2]; 2] {
+        self.corners
     }
 
     fn barycentric_coordinates(&self, point: &[f64; 2]) -> Array1<f64> {
@@ -70,13 +83,15 @@ impl PointDistance for Triangle {
 fn make_index(x: Array1<f64>, y: Array1<f64>, ikle: Vec<[usize; 3]>) -> RTree<Triangle> {
     let elements = ikle
         .iter()
-        .map(|edges| Triangle {
-            coords: arr2(&[
-                [x[edges[0]], y[edges[0]]],
-                [x[edges[1]], y[edges[1]]],
-                [x[edges[2]], y[edges[2]]],
-            ]),
-            indices: edges.clone(),
+        .map(|edges| {
+            Triangle::new(
+                arr2(&[
+                    [x[edges[0]], y[edges[0]]],
+                    [x[edges[1]], y[edges[1]]],
+                    [x[edges[2]], y[edges[2]]],
+                ]),
+                edges.clone(),
+            )
         })
         .collect();
     RTree::bulk_load(elements)
