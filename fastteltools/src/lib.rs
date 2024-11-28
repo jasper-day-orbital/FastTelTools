@@ -36,10 +36,11 @@ impl Triangle {
         for (i, col) in self.coords.axis_iter(Axis(1)).enumerate() {
             let (min, max) = col
                 .iter()
-                .copied()
                 .fold((f64::INFINITY, f64::NEG_INFINITY), |(min, max), v| {
-                    (min.min(v), max.max(v))
+                    (min.min(*v), max.max(*v))
                 });
+            // let min = *col.iter().min_by(|a, b| a.total_cmp(b)).unwrap();
+            // let max = *col.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
             c1[i] = min;
             c2[i] = max;
         }
