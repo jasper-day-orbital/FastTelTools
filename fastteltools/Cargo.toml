@@ -15,3 +15,8 @@ numpy = "^0.22.1"
 ndarray = "^0.16.1"
 ndarray-linalg = "^0.16.0"
 rstar = "0.12.2"
+
+[profile.release]
+debug = true      # Debug symbols for our profiler.
+lto = true        # Link-time optimization.
+codegen-units = 1 # Slower compilation but faster code.
