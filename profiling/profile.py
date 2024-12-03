@@ -52,7 +52,9 @@ t1 = time.perf_counter()
 print(f"Interpolated points in {(t1-t0) * 1000} ms")
 
 print(
-    sum([1 for interpolator in point_interpolators if interpolator is not None]),
+    sum(
+        [1 for interpolator in point_interpolators[:, 0] if not np.isnan(interpolator)]
+    ),
     "/",
     len(points),
     "points inside mesh",
@@ -63,15 +65,18 @@ t0 = time.perf_counter()
 
 
 def interpolate(values):
-    results = []
-    for point_interpolator in point_interpolators:
-        if point_interpolator is not None:
-            i, j, k = point_interpolator.indices
-            interpolator = point_interpolator.coords
-            results.append(interpolator.dot(values[[i, j, k]]))
-        else:
-            results.append(np.nan)
-    return results
+    coords = point_interpolators[:, :3]
+    indices = point_interpolators[:, 3:].astype(int)
+    return coords @ values[indices].T
+    # results = []
+    # for point_interpolator in point_interpolators:
+    #     if point_interpolator is not None:
+    #         i, j, k = point_interpolator
+    #         interpolator = point_interpolator.coords
+    #         results.append(interpolator.dot(values[[i, j, k]]))
+    #     else:
+    #         results.append(np.nan)
+    # return results
 
 
 results = interpolate(values)

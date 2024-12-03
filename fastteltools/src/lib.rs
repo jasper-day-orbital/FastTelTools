@@ -1,4 +1,4 @@
-use ndarray::{arr1, arr2, stack, Array1, Array2, Axis};
+use ndarray::{arr1, arr2, s, stack, Array1, Array2, Axis};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, ToPyArray};
 use pyo3::{prelude::*, pyclass};
 use rayon::prelude::*;
@@ -26,8 +26,9 @@ fn barycentric_coordinates(t: &Array2<f64>, x: f64, y: f64) -> Array1<f64> {
     (vec_norm_z + (x - x1) * vec_y - (y - y1) * vec_x) / norm_z
 }
 
+#[inline]
 fn is_inside(coords: &Array1<f64>) -> bool {
-    coords.iter().all(|&x| x >= 0.) && coords.iter().all(|&x| x <= 1.)
+    coords.iter().all(|&x| x >= 0. && x <= 1.)
 }
 
 fn get_corners(coords: &Array2<f64>) -> [[f64; 2]; 2] {
@@ -264,24 +265,50 @@ impl PyMesh2D {
             .collect()
     }
 
+    /// Optimized parallel point interpolators
     fn get_point_interpolators_parallel<'py>(
         &self,
         py: Python<'py>,
-        points: Vec<PyReadonlyArray1<f64>>,
-    ) -> Vec<Option<PyCoordResult>> {
-        let points = points
-            .into_iter()
-            .map(|point| point.as_array().to_owned())
-            .map(|arr| [arr[0], arr[1]])
-            .collect();
-        let interpolators = self.index.get_point_interpolators_parallel(points);
-        interpolators
-            .into_iter()
-            .map(|interpolator| match interpolator {
-                None => None,
-                Some(coord) => Some(coord.to_pycoordresult(py)),
-            })
-            .collect()
+        points: PyReadonlyArray2<f64>,
+    ) -> Option<Bound<'py, PyArray2<f64>>> {
+        // Convert input points to a native Rust structure
+        let points = points.as_array();
+        let num_points = points.len_of(Axis(0));
+
+        // Prepare a buffer for indices and barycentric coordinates
+        let mut results: Vec<Option<(Array1<f64>, [usize; 3])>> = vec![None; num_points];
+
+        // Parallel processing of points
+        results.par_iter_mut().enumerate().for_each(|(i, res)| {
+            let point = [points[[i, 0]], points[[i, 1]]];
+            *res = self
+                .index
+                .locate_at_point(&point)
+                .map(|tri| (tri.barycentric_coordinates(&point), tri.indices));
+        });
+
+        // Flatten the results into a NumPy array
+        let mut output = Array2::<f64>::zeros((num_points, 6)); // 6: 3 barycentric coords + 3 indices
+
+        for (i, result) in results.into_iter().enumerate() {
+            if let Some((coords, indices)) = result {
+                // Fill barycentric coordinates
+                for j in 0..3 {
+                    output[[i, j]] = coords[j];
+                }
+                // Fill triangle indices
+                for j in 0..3 {
+                    output[[i, 3 + j]] = indices[j] as f64;
+                }
+            } else {
+                // Mark as invalid (optional, based on your application)
+                output.row_mut(i).slice_mut(s![..3]).fill(f64::NAN);
+                output.row_mut(i).slice_mut(s![3..]).fill(-1f64);
+            }
+        }
+
+        // Return the NumPy array back to Python
+        Some(output.to_pyarray_bound(py))
     }
 }
 
