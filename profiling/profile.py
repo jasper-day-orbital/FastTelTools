@@ -46,7 +46,7 @@ yy = np.linspace(bounds[2], bounds[3], 200)
 points = np.array([[x, y] for x in xx for y in yy])
 
 t0 = time.perf_counter()
-point_interpolators = mesh.get_point_interpolators(points)
+point_interpolators = mesh.get_point_interpolators_parallel(points)
 t1 = time.perf_counter()
 
 print(f"Interpolated points in {(t1-t0) * 1000} ms")

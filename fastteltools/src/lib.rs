@@ -1,6 +1,7 @@
 use ndarray::{arr1, arr2, stack, Array1, Array2, Axis};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, ToPyArray};
 use pyo3::{prelude::*, pyclass};
+use rayon::prelude::*;
 use rstar::{PointDistance, RTree, RTreeObject, AABB};
 
 #[derive(Clone, Debug)]
@@ -146,6 +147,20 @@ impl Mesh2D {
             .collect()
     }
 
+    fn get_point_interpolators_parallel(&self, points: Vec<[f64; 2]>) -> Vec<Option<CoordResult>> {
+        points
+            // do it in parallel
+            .par_iter()
+            .map(|point| match self.locate_at_point(point) {
+                None => None,
+                Some(tri) => Some(CoordResult {
+                    indices: tri.indices,
+                    coords: tri.barycentric_coordinates(point),
+                }),
+            })
+            .collect()
+    }
+
     // fn get_point_interpolators_envelope(&self, points: Vec<[f64; 2]>) -> Vec<Option<CoordResult>> {
     //     points
     //         .iter()
@@ -240,6 +255,26 @@ impl PyMesh2D {
             .map(|arr| [arr[0], arr[1]])
             .collect();
         let interpolators = self.index.get_point_interpolators(points);
+        interpolators
+            .into_iter()
+            .map(|interpolator| match interpolator {
+                None => None,
+                Some(coord) => Some(coord.to_pycoordresult(py)),
+            })
+            .collect()
+    }
+
+    fn get_point_interpolators_parallel<'py>(
+        &self,
+        py: Python<'py>,
+        points: Vec<PyReadonlyArray1<f64>>,
+    ) -> Vec<Option<PyCoordResult>> {
+        let points = points
+            .into_iter()
+            .map(|point| point.as_array().to_owned())
+            .map(|arr| [arr[0], arr[1]])
+            .collect();
+        let interpolators = self.index.get_point_interpolators_parallel(points);
         interpolators
             .into_iter()
             .map(|interpolator| match interpolator {
