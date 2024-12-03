@@ -41,8 +41,8 @@ with Serafin.Read(DATA_PATH, "fr") as resin:
 xm = mesh.points[0, :]
 ym = mesh.points[1, :]
 bounds = [np.min(xm), np.max(xm), np.min(ym), np.max(ym)]
-xx = np.linspace(bounds[0], bounds[1], 200)
-yy = np.linspace(bounds[2], bounds[3], 200)
+xx = np.linspace(bounds[0], bounds[1], 1000)
+yy = np.linspace(bounds[2], bounds[3], 1000)
 points = np.array([[x, y] for x in xx for y in yy])
 
 t0 = time.perf_counter()
@@ -67,7 +67,9 @@ t0 = time.perf_counter()
 def interpolate(values):
     coords = point_interpolators[:, :3]
     indices = point_interpolators[:, 3:].astype(int)
-    return coords @ values[indices].T
+    print(coords.shape)
+    print(values[indices].shape)
+    return np.sum(coords * values[indices], axis=1)
     # results = []
     # for point_interpolator in point_interpolators:
     #     if point_interpolator is not None:
@@ -84,8 +86,8 @@ t1 = time.perf_counter()
 
 print(f"Found values in {(t1 - t0) * 1000} ms")
 
-# plt.imshow(np.array(results).reshape([200, 200]).T, extent=bounds, origin="lower")
+plt.imshow(np.array(results).reshape([1000, 1000]).T, extent=bounds, origin="lower")
 
-# plt.scatter(mesh.points[0, :], mesh.points[1, :], c="r", s=1)
+plt.scatter(mesh.points[0, :], mesh.points[1, :], c="r", s=1)
 # plt.quiver(xm, ym, U, V, color="white")
-# plt.show()
+plt.show()
