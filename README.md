@@ -5,10 +5,18 @@
 
 Tested versions: 3.7, 3.8, 3.9, 3.10 et 3.11.
 
+* [Changes in this fork](#changes-in-this-fork)
 * [Documentations](#documentations)
 * [Installation and requirements](#installation-and-requirements)
 * [Usage](#usage)
 * [Configure](#configure)
+
+## Changes in this fork
+
+This is a fork of the upstream git repository where utilities are incrementally translated into Rust for performance and memory usage improvements.
+
+* The original R*-Tree index ([libspatialindex](https://libspatialindex.org/en/latest/)) is not thread-safe. It has been replaced with the rust [rstar](https://docs.rs/rstar/latest/rstar/) library
+* Implemented point interpolators with the rust r* library
 
 
 ## Documentations
