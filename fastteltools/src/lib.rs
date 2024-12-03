@@ -78,6 +78,10 @@ impl PointDistance for Triangle {
     fn distance_2(&self, point: &[f64; 2]) -> f64 {
         self.envelope().distance_2(point)
     }
+
+    fn contains_point(&self, point: &<Self::Envelope as rstar::Envelope>::Point) -> bool {
+        is_inside(&self.barycentric_coordinates(point))
+    }
 }
 
 fn make_index(x: Array1<f64>, y: Array1<f64>, ikle: Vec<[usize; 3]>) -> RTree<Triangle> {
@@ -116,34 +120,44 @@ impl Mesh2D {
         }
     }
 
-    fn get_intersecting_elements(&self, point: [f64; 2]) -> Vec<&Triangle> {
-        self.rtree.locate_all_at_point(&point).collect()
+    fn locate_at_point(&self, point: &[f64; 2]) -> Option<&Triangle> {
+        self.rtree.locate_at_point(point)
+    }
+
+    fn locate_in_envelope_intersecting(
+        &self,
+        envelope: &<Triangle as RTreeObject>::Envelope,
+    ) -> Vec<&Triangle> {
+        self.rtree
+            .locate_in_envelope_intersecting(envelope)
+            .collect()
     }
 
     fn get_point_interpolators(&self, points: Vec<[f64; 2]>) -> Vec<Option<CoordResult>> {
-        // points.iter()
-        // .map(|point| self.get_intersecting_elements(point))
-        // .map(|e| )
-
-        let mut interpolators = Vec::<Option<CoordResult>>::new();
-
-        for point in points {
-            let potential_elements = self.get_intersecting_elements(point);
-            if potential_elements.is_empty() {
-                interpolators.push(None);
-                continue;
-            }
-            let interpolator = potential_elements
-                .iter()
-                .map(|tri| CoordResult {
+        points
+            .iter()
+            .map(|point| match self.locate_at_point(point) {
+                None => None,
+                Some(tri) => Some(CoordResult {
                     indices: tri.indices,
-                    coords: tri.barycentric_coordinates(&point),
-                })
-                .find(|coord| is_inside(&coord.coords));
-            interpolators.push(interpolator)
-        }
-        interpolators
+                    coords: tri.barycentric_coordinates(point),
+                }),
+            })
+            .collect()
     }
+
+    // fn get_point_interpolators_envelope(&self, points: Vec<[f64; 2]>) -> Vec<Option<CoordResult>> {
+    //     points
+    //         .iter()
+    //         .map(|point| match self.locate_in_envelope_intersecting(point) {
+    //             None => None,
+    //             Some(tri) => Some(CoordResult {
+    //                 indices: tri.indices,
+    //                 coords: tri.barycentric_coordinates(point),
+    //             }),
+    //         })
+    //         .collect()
+    // }
 }
 
 #[pyclass(subclass)]
@@ -195,18 +209,25 @@ impl PyMesh2D {
         self.index.points.to_pyarray_bound(py)
     }
 
-    fn get_intersecting_elements<'py>(
-        &self,
-        py: Python<'py>,
-        point: PyReadonlyArray1<f64>,
-    ) -> Vec<Bound<'py, PyArray2<f64>>> {
-        let point = point.as_array().to_owned();
-        self.index
-            .get_intersecting_elements([point[0], point[1]])
-            .into_iter()
-            .map(|tri| tri.coords.to_pyarray_bound(py))
-            .collect()
-    }
+    // fn get_point_interpolators_envelope<'py>(
+    //     &self,
+    //     py: Python<'py>,
+    //     points: Vec<PyReadonlyArray1<f64>>,
+    // ) -> Vec<Option<PyCoordResult>> {
+    //     let points = points
+    //         .into_iter()
+    //         .map(|point| point.as_array().to_owned())
+    //         .map(|arr| [arr[0], arr[1]])
+    //         .collect();
+    //     let interpolators = self.index.get_point_interpolators_envelope(points);
+    //     interpolators
+    //         .into_iter()
+    //         .map(|interpolator| match interpolator {
+    //             None => None,
+    //             Some(coord) => Some(coord.to_pycoordresult(py)),
+    //         })
+    //         .collect()
+    // }
 
     fn get_point_interpolators<'py>(
         &self,
