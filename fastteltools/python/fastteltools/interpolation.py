@@ -17,5 +17,5 @@ class PyMesh2D(_PyMesh2D):
         return np.sum(coords * values[inds], axis=1)
 
     @staticmethod
-    def interpolate(self, coords, inds, values):
+    def interpolate(coords, inds, values):
         return np.sum(coords * values[inds], axis=1)
