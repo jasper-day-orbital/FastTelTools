@@ -1,6 +1,6 @@
 from pyteltools.slf import Serafin
 from pyteltools.slf.interpolation import MeshInterpolator
-from fastteltools import fastteltools
+from fastteltools import PyMesh2D
 import matplotlib.pyplot as plt
 import numpy as np
 import time
@@ -10,18 +10,20 @@ DATA_PATH = "data/msh_hydro.slf"
 
 with Serafin.Read(DATA_PATH, "fr") as resin:
     resin.read_header()
+    header = resin.header.copy()
     # print(resin.header.summary())
 
     resin.get_time()
     # print(resin.time)
 
     t0 = time.perf_counter()
-    x, y = (
-        resin.header.x[: resin.header.nb_nodes_2d].astype(np.float64),
-        resin.header.y[: resin.header.nb_nodes_2d].astype(np.float64),
-    )
-    ikle = resin.header.ikle_2d - 1
-    mesh = fastteltools.PyMesh2D(x, y, ikle)
+    # x, y = (
+    #     resin.header.x[: resin.header.nb_nodes_2d].astype(np.float64),
+    #     resin.header.y[: resin.header.nb_nodes_2d].astype(np.float64),
+    # )
+    # ikle = np.array(resin.header.ikle_2d) - 1
+    # print(ikle.dtype)
+    mesh = PyMesh2D(header)
     # oldmesh = MeshInterpolator(resin.header, True)
     # plt.scatter(oldmesh.points[:, 0], oldmesh.points[:, 1], c="k", s=0.5)
     # plt.scatter(x, y, s=0.5, c="b")
@@ -41,20 +43,24 @@ with Serafin.Read(DATA_PATH, "fr") as resin:
 xm = mesh.points[0, :]
 ym = mesh.points[1, :]
 bounds = [np.min(xm), np.max(xm), np.min(ym), np.max(ym)]
-xx = np.linspace(bounds[0], bounds[1], 1000)
-yy = np.linspace(bounds[2], bounds[3], 1000)
+xx = np.linspace(bounds[0], bounds[1], 200)
+yy = np.linspace(bounds[2], bounds[3], 200)
 points = np.array([[x, y] for x in xx for y in yy])
 
 t0 = time.perf_counter()
-point_interpolators = mesh.get_point_interpolators_parallel(points)
+coords, indices = mesh.get_point_interpolators(points)
 t1 = time.perf_counter()
 
 print(f"Interpolated points in {(t1-t0) * 1000} ms")
 
+t0 = time.perf_counter()
+_coords, _indices = mesh.get_point_interpolators_parallel(points)
+t1 = time.perf_counter()
+
+print(f"Interpolated points (parallel) in {(t1-t0) * 1000} ms")
+
 print(
-    sum(
-        [1 for interpolator in point_interpolators[:, 0] if not np.isnan(interpolator)]
-    ),
+    sum([1 for coord in coords[:, 0] if not np.isnan(coord)]),
     "/",
     len(points),
     "points inside mesh",
@@ -63,31 +69,13 @@ print(
 
 t0 = time.perf_counter()
 
-
-def interpolate(values):
-    coords = point_interpolators[:, :3]
-    indices = point_interpolators[:, 3:].astype(int)
-    print(coords.shape)
-    print(values[indices].shape)
-    return np.sum(coords * values[indices], axis=1)
-    # results = []
-    # for point_interpolator in point_interpolators:
-    #     if point_interpolator is not None:
-    #         i, j, k = point_interpolator
-    #         interpolator = point_interpolator.coords
-    #         results.append(interpolator.dot(values[[i, j, k]]))
-    #     else:
-    #         results.append(np.nan)
-    # return results
-
-
-results = interpolate(values)
+results = mesh.interpolate(coords, indices, values)
 t1 = time.perf_counter()
 
 print(f"Found values in {(t1 - t0) * 1000} ms")
 
-plt.imshow(np.array(results).reshape([1000, 1000]).T, extent=bounds, origin="lower")
+# plt.imshow(np.array(results).reshape([200, 200]).T, extent=bounds, origin="lower")
 
-plt.scatter(mesh.points[0, :], mesh.points[1, :], c="r", s=1)
-# plt.quiver(xm, ym, U, V, color="white")
-plt.show()
+# plt.scatter(mesh.points[0, :], mesh.points[1, :], c="r", s=1)
+# # plt.quiver(xm, ym, U, V, color="white")
+# plt.show()

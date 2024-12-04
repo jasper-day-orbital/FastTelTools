@@ -4,7 +4,6 @@ Barycentric interpolation in triangles
 
 import numpy as np
 from .mesh2D import Mesh2D
-from fastteltools import interpolate
 
 
 class Interpolator:
@@ -60,7 +59,7 @@ class MeshInterpolator(Mesh2D):
                 continue
             for i, j, k in potential_elements:
                 t = self.triangles[i, j, k]
-                coord = interpolate(np.array(t.exterior.coords), x, y)
+                coord = Interpolator(t).get_interpolator_at(x, y)
                 # print(type(x), type(y))
                 if is_in_tri(coord):
                     is_inside[index] = True
