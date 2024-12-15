@@ -4,6 +4,8 @@ use pyo3::{prelude::*, pyclass};
 use rayon::prelude::*;
 use rstar::{PointDistance, RTree, RTreeObject, AABB};
 
+mod path_coordinates;
+
 #[derive(Clone, Debug)]
 struct Triangle {
     coords: Array2<f32>,
@@ -229,5 +231,6 @@ impl _PyMesh2D {
 #[pymodule]
 fn _fastteltools(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<_PyMesh2D>()?;
+    m.add_class::<path_coordinates::_PyPathCoords>()?;
     Ok(())
 }
