@@ -5,6 +5,9 @@ import time
 def main():
     import numpy as np
     import matplotlib.pyplot as plt
+    import os
+
+    os.environ["RUST_BACKTRACE"] = "full"
 
     n_x = 500
     n_y = 500
@@ -19,21 +22,36 @@ def main():
     )
 
     t0 = time.perf_counter()
-    inds, dists = PyPathCoords.get_path_coords(
+    inds, dists = PyPathCoords.get_continuous_path_coords(
         path.astype(np.float64), points.astype(np.float64)
     )
     t1 = time.perf_counter()
     print(f"{(t1 - t0) * 1e3} ms to complete operation")
 
+    xx = points[:, 0].reshape(n_x, n_y)
+    yy = points[:, 1].reshape(n_x, n_y)
+
+    r = (xx**2 + yy**2) ** 0.5
+    theta = np.atan2(yy, xx)
+    theta[:, y < 0] += 2 * np.pi
+
     # Plotting
     plt.subplot(211)
-    plt.scatter(path[:, 0], path[:, 1])
-    plt.imshow(dists.reshape(n_x, n_y).T, origin="lower", extent=[-10, 10, -10, 10])
+    plt.scatter(path[:, 0], path[:, 1], s=0.5)
+    plt.imshow(
+        dists.reshape(n_x, n_y).T - np.abs(r - 4).T,
+        origin="lower",
+        extent=[-10, 10, -10, 10],
+    )
     plt.colorbar()
     plt.title("Distances")
     plt.subplot(212)
-    plt.scatter(path[:, 0], path[:, 1])
-    plt.imshow(inds.reshape(n_x, n_y).T, origin="lower", extent=[-10, 10, -10, 10])
+    plt.scatter(path[:, 0], path[:, 1], s=0.5)
+    plt.imshow(
+        inds.reshape(n_x, n_y).T,
+        origin="lower",
+        extent=[-10, 10, -10, 10],
+    )
     plt.colorbar()
     plt.title("Indices")
     plt.show()

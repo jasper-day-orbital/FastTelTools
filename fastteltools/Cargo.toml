@@ -17,6 +17,7 @@ ndarray-linalg = "^0.16.0"
 rstar = "0.12.2"
 rayon = "1.10.0"
 num = "0.4.3"
+approx = "0.5.1"
 
 [profile.release]
 debug = true      # Debug symbols for our profiler.
